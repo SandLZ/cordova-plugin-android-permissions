@@ -1,6 +1,10 @@
 package com.android.plugins;
-
+import android.app.AlertDialog;
+import android.content.DialogInterface;
+import android.content.Intent;
+import android.net.Uri;
 import android.os.Build;
+import android.provider.Settings;
 
 import org.apache.cordova.CallbackContext;
 import org.apache.cordova.CordovaPlugin;
@@ -136,11 +140,52 @@ public class Permissions extends CordovaPlugin {
 
         for (String permission : permissions) {
             if(!cordova.hasPermission(permission)) {
+                checkPermissionHadDenied(permission);
                 return false;
             }
         }
 
         return true;
+    }
+
+    /**
+     * 检查权限是否已经被拒绝过
+     */
+    private void checkPermissionHadDenied(String permission) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+            return;
+        }
+        if (!cordova.getActivity().shouldShowRequestPermissionRationale(permission)) {
+            goPermissionSetting();
+        }
+    }
+
+    private void goPermissionSetting() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+            return;
+        }
+        new AlertDialog.Builder(cordova.getActivity())
+                .setMessage("获取相关权限失败,\r\n" +
+                        "这将导致部分功能无法正常使用，需要到设置页面手动授权")
+                .setPositiveButton("去授权", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        //引导用户至设置页手动授权
+                        Intent intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+                        Uri uri = Uri.fromParts("package", cordova.getActivity().getApplicationContext().getPackageName(), null);
+                        intent.setData(uri);
+                        cordova.getActivity().startActivity(intent);
+                    }
+                })
+                .setNegativeButton("取消", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                    }
+                }).setOnCancelListener(new DialogInterface.OnCancelListener() {
+            @Override
+            public void onCancel(DialogInterface dialog) {
+            }
+        }).show();
     }
 
     private void addProperty(JSONObject obj, String key, Object value) {
